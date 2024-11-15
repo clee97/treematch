@@ -14,6 +14,7 @@ import org.springframework.util.ResourceUtils;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -97,8 +98,7 @@ public class QuizJsonLoaderService {
      * @param prevChoices - Previous choices we have taken to get to the current step
      */
     private void validateStep(@NonNull Quiz quiz, long stepId, @NonNull List<Pair<Long, String>> prevChoices) {
-        var step = quiz.getStep(stepId)
-            .orElseThrow(() -> new IllegalArgumentException("Step ID %s not found".formatted(stepId)));
+        var step = quiz.getStep(stepId).orElseThrow(() -> new IllegalArgumentException("Step ID %s not found".formatted(stepId)));
         if (prevChoices.stream().anyMatch(choice -> choice.getFirst().equals(stepId))) {
             var cycleString = prevChoices.stream()
                 .map(choice -> "Step: %s, Ans: %s".formatted(choice.getFirst(), choice.getSecond()))
@@ -106,15 +106,16 @@ public class QuizJsonLoaderService {
             throw new IllegalStateException("Cycle found in quiz %s".formatted(cycleString));
         }
         if (step.resultId() != null) {
-            quiz.getResult(step.resultId())
-                .orElseThrow(() -> new IllegalStateException("Step %s contains an invalid result %s".formatted(stepId, step.resultId())));
+            quiz.getResult(step.resultId()).orElseThrow(() -> new IllegalStateException("Step %s contains an invalid result %s".formatted(stepId, step.resultId())));
             return;
+        }
+        if (step.answers() == null) {
+            throw new IllegalArgumentException("Malformed question step");
         }
         // Go through all the answers and ensure all the next steps are valid
         // It is possible that the questions.json file can contain cycles. This validation is under the assumption that this is not allowed
         step.answers().forEach((answer, nextStepId) -> {
-            var newPrevChoices = new ArrayList<>(prevChoices);
-            newPrevChoices.add(Pair.of(stepId, answer));
+            var newPrevChoices = Stream.concat(prevChoices.stream(), Stream.of(Pair.of(stepId, answer))).toList();
             validateStep(quiz, nextStepId, newPrevChoices);
         });
     }
