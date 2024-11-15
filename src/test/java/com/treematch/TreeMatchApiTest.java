@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class TreeMatchApiTest {
+public class TreeMatchApiTest {
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -30,7 +30,7 @@ class TreeMatchApiTest {
 	private ObjectMapper objectMapper;
 
 	@Test
-	public void testBeginOperation() throws Exception {
+	public void givenNothing_whenBeginningQuiz_thenReturnFirstStep() throws Exception {
 		var apiResp = mockMvc.perform(get("/api/begin").with(httpBasic("user", "password")));
 		assertQuestionStep(apiResp, 1, "Do you have a courtyard, garden, or a farm?", Matchers.containsInAnyOrder("courtyard", "garden", "farm"));
 	}
@@ -43,7 +43,7 @@ class TreeMatchApiTest {
 	 * Match: "Bay tree"
 	 */
 	@Test
-	public void testBasicPath() throws Exception {
+	public void givenSimplePathway_whenAnsweringQuestion_thenReturnMatch() throws Exception {
 		var apiResp = callBeginEndpoint();
 		assertQuestionStep(apiResp, 1, "Do you have a courtyard, garden, or a farm?", Matchers.containsInAnyOrder("courtyard", "garden", "farm"));
 
@@ -66,7 +66,7 @@ class TreeMatchApiTest {
 	 * Match: "Orange tree"
 	 */
 	@Test
-	public void testComplexPath() throws Exception {
+	public void givenComplexPathway_whenAnsweringQuestion_thenReturnMatch() throws Exception {
 		var apiResp = callBeginEndpoint();
 		assertQuestionStep(apiResp, 1, "Do you have a courtyard, garden, or a farm?", Matchers.containsInAnyOrder("courtyard", "garden", "farm"));
 
