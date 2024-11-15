@@ -26,7 +26,7 @@ public class QuizJsonLoaderService {
     /**
      * Loads and validates the questions.json file and caches it in spring's default cache store for later re-use
      */
-    @Cacheable("questionsJson")
+    @Cacheable(value = "quiz", key = "#fileName")
     public Quiz lazyLoadQuiz(@NonNull String fileName) {
         Quiz quiz;
         try {
@@ -58,7 +58,7 @@ public class QuizJsonLoaderService {
                     throw new IllegalArgumentException("Result steps element should only contain result_id");
                 }
             } else if (step.questionId() == null || step.answers() == null) {
-                throw new IllegalArgumentException("Next question steps should only question_id and answers");
+                throw new IllegalArgumentException("Next question steps should only contain question_id and answers");
             }
         });
     }

@@ -13,9 +13,24 @@ public class QuizJsonLoaderServiceTest {
     private QuizJsonLoaderService quizJsonLoaderService;
 
     @Test
-    public void testLoad() {
-        var quiz = quizJsonLoaderService.lazyLoadQuiz("questions.json");
-        Assertions.assertNotNull(quiz);
+    public void givenValidJson_whenLazyLoadQuiz_thenReturnObject() {
+        Assertions.assertNotNull(quizJsonLoaderService.lazyLoadQuiz("questions.json"));
+    }
+
+    @Test
+    public void givenJsonWithInvalidIds_whenLazyLoadQuiz_thenThrowException() {
+        Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> quizJsonLoaderService.lazyLoadQuiz("questions-invalid-ids.json")
+        );
+    }
+
+    @Test
+    public void givenJsonWithCycle_whenLazyLoadQuiz_thenThrowException() {
+        Assertions.assertThrows(
+            IllegalStateException.class,
+            () -> quizJsonLoaderService.lazyLoadQuiz("questions-cycle.json")
+        );
     }
 
 }
