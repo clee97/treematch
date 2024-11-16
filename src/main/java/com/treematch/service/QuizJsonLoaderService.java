@@ -2,17 +2,18 @@ package com.treematch.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.treematch.model.Quiz;
+import com.treematch.model.Step;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.util.Pair;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ResourceUtils;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -84,7 +85,7 @@ public class QuizJsonLoaderService {
     }
 
     private void validateQuizSteps(@NonNull Quiz quiz) {
-        quiz.steps().forEach(step -> validateStep(quiz, step.id(), new ArrayList<>()));
+        quiz.steps().forEach(step -> validateStep(quiz, step, new HashSet<>()));
     }
 
     /**
@@ -94,19 +95,15 @@ public class QuizJsonLoaderService {
      * - An infinite loop can be formed by choosing a specific path
      *
      * @param quiz - De-serialised quiz object from the questions.json file
-     * @param stepId - Current step ID that is being validated
-     * @param prevChoices - Previous choices we have taken to get to the current step
+     * @param step - Current step that is being validated
+     * @param prevStepIds - Previous steps in this path we have taken to get to the current step
      */
-    private void validateStep(@NonNull Quiz quiz, long stepId, @NonNull List<Pair<Long, String>> prevChoices) {
-        var step = quiz.getStep(stepId).orElseThrow(() -> new IllegalArgumentException("Step ID %s not found".formatted(stepId)));
-        if (prevChoices.stream().anyMatch(choice -> choice.getFirst().equals(stepId))) {
-            var cycleString = prevChoices.stream()
-                .map(choice -> "Step: %s, Ans: %s".formatted(choice.getFirst(), choice.getSecond()))
-                .collect(Collectors.joining(" -> "));
-            throw new IllegalStateException("Cycle found in quiz %s".formatted(cycleString));
+    private void validateStep(@NonNull Quiz quiz, @NonNull Step step, @NonNull Set<Long> prevStepIds) {
+        if (prevStepIds.contains(step.id())) {
+            throw new IllegalStateException("Cycle found in quiz");
         }
         if (step.resultId() != null) {
-            quiz.getResult(step.resultId()).orElseThrow(() -> new IllegalStateException("Step %s contains an invalid result %s".formatted(stepId, step.resultId())));
+            quiz.getResult(step.resultId()).orElseThrow(() -> new IllegalStateException("Step %s contains an invalid result %s".formatted(step.id(), step.resultId())));
             return;
         }
         if (step.answers() == null) {
@@ -115,8 +112,9 @@ public class QuizJsonLoaderService {
         // Go through all the answers and ensure all the next steps are valid
         // It is possible that the questions.json file can contain cycles. This validation is under the assumption that this is not allowed
         step.answers().forEach((answer, nextStepId) -> {
-            var newPrevChoices = Stream.concat(prevChoices.stream(), Stream.of(Pair.of(stepId, answer))).toList();
-            validateStep(quiz, nextStepId, newPrevChoices);
+            var nextStep = quiz.getStep(nextStepId).orElseThrow(() -> new IllegalArgumentException("Step ID %s not found".formatted(nextStepId)));
+            var newPrevStepIds = Stream.concat(prevStepIds.stream(), Stream.of(step.id())).collect(Collectors.toSet());
+            validateStep(quiz, nextStep, newPrevStepIds);
         });
     }
 

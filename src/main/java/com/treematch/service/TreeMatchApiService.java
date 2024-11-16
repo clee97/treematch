@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Validated
@@ -18,20 +20,19 @@ public class TreeMatchApiService {
     public ApiBeginResponse beginQuiz() {
         var quiz = quizJsonLoaderService.lazyLoadQuiz("questions.json");
         var firstStep = quiz.steps().get(0);
-        var firstQuestion = quiz.getQuestion(firstStep.questionId())
-            .orElseThrow(() -> new IllegalStateException("No question could be found"));
+        var firstQuestion = quiz.getQuestion(firstStep.questionId()).orElseThrow(() -> new IllegalStateException("No question could be found"));
         return new ApiBeginResponse(new ApiBeginResponse.Question(firstStep.id(), firstQuestion.question(), firstQuestion.validation()));
     }
 
     public ApiAnswerResponse answerQuestion(@Valid ApiAnswerRequest answer) {
         var quiz = quizJsonLoaderService.lazyLoadQuiz("questions.json");
         // Find the step we are attempting to answer
-        var currentStep = quiz.getStep(answer.stepId()).orElseThrow(() -> new IllegalArgumentException("Invalid step_id parameter"));
+        var currentStep = quiz.getStep(answer.stepId())
+            .orElseThrow(() -> new IllegalArgumentException("Invalid step_id parameter"));
         // And now find the next step based on the chosen answer
-        var nextStepId = currentStep.answers().get(answer.answer());
-        if (nextStepId == null) {
-            throw new IllegalArgumentException("Invalid answer value");
-        }
+        var nextStepId = Optional
+            .ofNullable(currentStep.answers().get(answer.answer()))
+            .orElseThrow(() -> new IllegalArgumentException("Invalid answer value"));
         var nextStep = quiz.getStep(nextStepId).orElseThrow(() -> new IllegalStateException("Could not find next step from answer"));
         // Check if the next step points to another next step or is the final destination (contains a result)
         if (nextStep.resultId() != null) {
